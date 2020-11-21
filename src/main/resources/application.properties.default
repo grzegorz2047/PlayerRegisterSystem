@@ -1,3 +1,4 @@
 server.port=8080
 google.priv-key=xyz
 google.url=https://www.google.com/recaptcha/api/siteverify
+service.cors-origin=https://abc.xyz

@@ -10,9 +10,10 @@
 </head>
 <body>
 <h1>Zarejestruj swój nick na serwerze!</h1>
-    <input id="username" type="text">
-    <div id='captcha'></div>
-    <input type="button" onclick="verify()" value="Zarejestruj"/>
+<input id="username" type="text">
+<div id='captcha'></div>
+<input type="button" onclick="verify()" value="Zarejestruj"/>
+<div id="main"></div>
 <script>
     function verify() {
         let apiKey = '6LcZfuYZAAAAAKpD3fWWQ8NnE88SKCYU84Cmc0ct';
@@ -33,7 +34,7 @@
                 dataType: "json",
                 contentType: "application/json; charset=utf-8",
                 success: function(response) {
-                    $('#main').html(response.username);
+                    $('#main').html("Zostales pomyslnie zarejestrowany! " + response.username);
                 }
               });
           });

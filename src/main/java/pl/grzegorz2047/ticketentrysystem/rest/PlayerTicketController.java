@@ -4,21 +4,26 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.configurationprocessor.json.JSONException;
 import org.springframework.boot.configurationprocessor.json.JSONObject;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.cache.interceptor.SimpleCacheErrorHandler;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 import pl.grzegorz2047.ticketentrysystem.database.Ticket;
 import pl.grzegorz2047.ticketentrysystem.database.repository.TicketRepository;
 import pl.grzegorz2047.ticketentrysystem.rest.dto.PlayerData;
+
+import javax.servlet.http.HttpServletRequest;
+import java.util.concurrent.ExecutionException;
 
 @RestController()
 @RequestMapping("/ticket")
 public class PlayerTicketController {
 
+    @Value("${service.cors-origin}")
+    private final String dedicatedUrl = "http://register.mc-walls.pl";
     @Value("${google.priv-key}")
+
     private String privKey;
 
     @Value("${google.url}")
@@ -26,13 +31,17 @@ public class PlayerTicketController {
 
     @Autowired
     private TicketRepository repository;
+    private SimpleCache simpleCache;
 
-    @CrossOrigin(origins = "http://register.mc-walls.pl")
+    @CrossOrigin(origins = dedicatedUrl)
     @PostMapping("/create")
-    public ResponseEntity<Ticket> requestTicket(@RequestBody PlayerData data) {
+    public ResponseEntity<Ticket> requestTicket(@RequestBody PlayerData data, HttpServletRequest request) {
 
         String username = data.getUsername();
         String token = data.getToken();
+        if(request == null) {
+            return ResponseEntity.badRequest().build();
+        }
         if (username.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
@@ -43,16 +52,24 @@ public class PlayerTicketController {
         if (repository.findByUsername(username).isPresent()) {
             return ResponseEntity.badRequest().build();
         }
+        String remoteAddr = request.getRemoteAddr();
+        System.out.println(remoteAddr);
+        boolean canAttempt = simpleCache.canAttempt(remoteAddr);
+        if(!canAttempt) {
+            return ResponseEntity.status(HttpStatus.I_AM_A_TEAPOT).build();
+        }
         try {
             if (!isUserValidated(token)) {
-                return ResponseEntity.badRequest().build();
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
         } catch (JSONException e) {
-            return ResponseEntity.badRequest().build();
+            System.out.println(data.getUsername() + " " + data.getToken());
+            e.getStackTrace();
         }
         Ticket ticket = new Ticket();
         ticket.setUsername(username);
         repository.save(ticket);
+        simpleCache.attempt(remoteAddr);
         return ResponseEntity.ok().build();
     }
 
@@ -60,15 +77,11 @@ public class PlayerTicketController {
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        JSONObject playerValidationData = new JSONObject();
-        playerValidationData.put("secret", privKey);
-        playerValidationData.put("token", token);
-        HttpEntity<String> request =
-                new HttpEntity<>(playerValidationData.toString(), headers);
-        String result = restTemplate.postForObject(googleUrl, request, String.class);
-        if (result == null) {
-            return false;
-        }
-        return !result.isBlank();
+        String url = UriComponentsBuilder
+                .fromUriString(googleUrl).queryParam("secret", privKey).queryParam("response", token).build().encode().toUriString();
+        HttpEntity<String> request = new HttpEntity<>("", headers);
+        PlayerRegisterValidationDataResponse result = restTemplate.postForObject(url, request, PlayerRegisterValidationDataResponse.class);
+        System.out.println("============ " + result);
+        return result.isSuccess();
     }
 }
