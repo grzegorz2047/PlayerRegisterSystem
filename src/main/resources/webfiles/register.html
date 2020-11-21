@@ -1,0 +1,44 @@
+<html>
+<head>
+    <title>reCAPTCHA demo: Simple page</title>
+    <script
+            src="https://code.jquery.com/jquery-3.5.1.js"
+            integrity="sha256-QWo7LDvxbWT2tbbQ97B53yJnYU3WhH/C8ycbRAkjPDc="
+            crossorigin="anonymous">
+    </script>
+    <script src="https://www.google.com/recaptcha/api.js?render=6LcZfuYZAAAAAKpD3fWWQ8NnE88SKCYU84Cmc0ct"></script>
+</head>
+<body>
+<h1>Zarejestruj swój nick na serwerze!</h1>
+    <input id="username" type="text">
+    <div id='captcha'></div>
+    <input type="button" onclick="verify()" value="Zarejestruj"/>
+<script>
+    function verify() {
+        let apiKey = '6LcZfuYZAAAAAKpD3fWWQ8NnE88SKCYU84Cmc0ct';
+        grecaptcha.ready(function() {
+          grecaptcha.execute(apiKey, {action: 'submit'}).then(function(token) {
+              // Add your logic to submit to your backend server here.
+              let username = document.getElementById("username").value;
+              $.ajax(
+              {
+                url: "http://register.mc-walls.pl:8080/ticket/create",
+                type: "POST",
+                data: JSON.stringify (
+                    {
+                        'username': username,
+                        'token': token
+                    }
+                ),
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                success: function(response) {
+                    $('#main').html(response.username);
+                }
+              });
+          });
+        });
+    }
+</script>
+</body>
+</html>
