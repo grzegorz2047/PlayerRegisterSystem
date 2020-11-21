@@ -23,7 +23,6 @@ public class PlayerTicketController {
     @Value("${service.cors-origin}")
     private final String dedicatedUrl = "http://register.mc-walls.pl";
     @Value("${google.priv-key}")
-
     private String privKey;
 
     @Value("${google.url}")
@@ -31,7 +30,7 @@ public class PlayerTicketController {
 
     @Autowired
     private TicketRepository repository;
-    private SimpleCache simpleCache;
+    private static SimpleCache simpleCache = new SimpleCache();
 
     @CrossOrigin(origins = dedicatedUrl)
     @PostMapping("/create")
@@ -42,6 +41,7 @@ public class PlayerTicketController {
         if(request == null) {
             return ResponseEntity.badRequest().build();
         }
+
         if (username.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
@@ -49,9 +49,11 @@ public class PlayerTicketController {
         if (token.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
+
         if (repository.findByUsername(username).isPresent()) {
             return ResponseEntity.badRequest().build();
         }
+
         String remoteAddr = request.getRemoteAddr();
         System.out.println(remoteAddr);
         boolean canAttempt = simpleCache.canAttempt(remoteAddr);
